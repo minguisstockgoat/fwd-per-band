@@ -45,11 +45,12 @@
 
   function gauge(r) {
     if (r.status !== 'ok' || r.per == null) return '';
-    var lo = r.per_min, hi = r.per_max, span = hi - lo || 1;
+    var lo = r.per_p05, hi = r.per_p95, span = hi - lo || 1;
     var pos = Math.max(0, Math.min(1, (r.per - lo) / span)) * 100;
     var q1 = Math.max(0, Math.min(1, (r.per_q1 - lo) / span)) * 100;
     var q3 = Math.max(0, Math.min(1, (r.per_q3 - lo) / span)) * 100;
-    return '<div class="gauge" title="' + r.per_min + ' ~ ' + r.per_max + '">' +
+    return '<div class="gauge" title="5~95% 구간 ' + r.per_p05 + ' ~ ' + r.per_p95 +
+      ' (전체 ' + r.per_min + ' ~ ' + r.per_max + ')">' +
       '<u style="left:' + q1 + '%;width:' + Math.max(1, q3 - q1) + '%"></u>' +
       '<i style="left:' + pos + '%"></i></div>';
   }
@@ -102,7 +103,7 @@
       ['종가', num(price) + '원'],
       ['EPS(Fwd.12M)', num(eps) + '원'],
       ['Fwd PER', per == null ? '-' : per.toFixed(2) + 'x'],
-      ['1년 밴드', d.per_min == null ? '-' : d.per_min.toFixed(1) + ' ~ ' + d.per_max.toFixed(1)],
+      ['1년 밴드 5~95%', d.per_p05 == null ? '-' : d.per_p05.toFixed(1) + ' ~ ' + d.per_p95.toFixed(1)],
       ['밴드 위치', d.per_pct == null ? '-' : d.per_pct.toFixed(0) + '%'],
       ['최근 MDD', d.mdd == null ? '-' : d.mdd.toFixed(1) + '%'],
       ['현재 낙폭', d.cur_dd == null ? '-' : d.cur_dd.toFixed(1) + '%']
@@ -130,7 +131,7 @@
     }
 
     // --- PER 밴드 차트 ---
-    var mults = [d.per_min, d.per_q1, d.per_med, d.per_q3, d.per_max];
+    var mults = [d.per_p05, d.per_q1, d.per_med, d.per_q3, d.per_p95];
     var bandSeries = mults.map(function (mv, i) {
       return {
         name: mv.toFixed(1) + 'x',
@@ -138,14 +139,19 @@
         color: BAND_COLORS[i], width: 1, dash: '5 4', opacity: .85, endLabel: mv.toFixed(1) + 'x'
       };
     });
+    // 밴드 배수가 극단적인 종목에서도 주가가 보이도록 y축은 주가 범위 기준으로 고정
+    var pv = d.price.filter(function (v) { return v != null; });
+    var pmin = Math.min.apply(null, pv), pmax = Math.max.apply(null, pv);
     charts.push(window.Chart.create($('#bandChart'), {
       dates: d.dates,
       series: bandSeries.concat([{ name: '주가', values: d.price, color: '#ffffff', width: 2 }]),
+      yMin: Math.max(0, pmin * 0.45),
+      yMax: pmax * 1.9,
       fmtY: function (v) { return v >= 10000 ? Math.round(v / 1000) + 'k' : Math.round(v).toLocaleString(); },
       fmtTip: function (v) { return Math.round(v).toLocaleString() + '원'; },
       zeroFloor: true
     }));
-    $('#bandLegend').innerHTML = ['최저', '25%', '중앙', '75%', '최고'].map(function (lb, i) {
+    $('#bandLegend').innerHTML = ['5%', '25%', '중앙', '75%', '95%'].map(function (lb, i) {
       return '<span><i style="background:' + BAND_COLORS[i] + '"></i>' + lb + ' ' + mults[i].toFixed(1) + 'x</span>';
     }).join('') + '<span><i style="background:#fff"></i>주가</span>';
 

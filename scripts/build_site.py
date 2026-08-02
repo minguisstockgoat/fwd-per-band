@@ -15,14 +15,24 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def per_series(price: list, eps: list) -> list:
-    out = []
+# 선행 EPS 가 자기 기간 최대치 대비 이 비율보다 작으면(흑자전환 부근) PER 이 무의미해 제외
+EPS_FLOOR_RATIO = 0.03
+
+
+def per_series(price: list, eps: list) -> tuple[list, int]:
+    """(Fwd PER 시계열, 0 근처 EPS 로 제외한 일수)."""
+    pos = [e for e in eps if e is not None and e > 0]
+    floor = max(pos) * EPS_FLOOR_RATIO if pos else 0
+    out, dropped = [], 0
     for p, e in zip(price, eps):
-        if p and e and e > 0:
-            out.append(round(p / e, 3))
-        else:
+        if not p or e is None or e <= 0:
             out.append(None)
-    return out
+        elif e < floor:
+            out.append(None)
+            dropped += 1
+        else:
+            out.append(round(p / e, 3))
+    return out, dropped
 
 
 def recent_mdd(per: list, dates: list[str]) -> dict:
@@ -73,6 +83,9 @@ def stats(per: list) -> dict:
         "per_sd": round(sd, 3),
         "per_min": round(ordered[0], 2),
         "per_max": round(ordered[-1], 2),
+        # 밴드 라인·게이지는 극단값에 휘둘리지 않도록 5~95% 구간을 쓴다
+        "per_p05": round(q(0.05), 2),
+        "per_p95": round(q(0.95), 2),
         "per_q1": round(q(0.25), 2),
         "per_med": round(q(0.5), 2),
         "per_q3": round(q(0.75), 2),
@@ -104,8 +117,10 @@ def main() -> None:
 
     index = []
     for code, s in master["stocks"].items():
-        per = per_series(s["price"], s["eps"])
+        per, dropped = per_series(s["price"], s["eps"])
         st = stats(per)
+        if st:
+            st["excluded"] = dropped
         mdd = recent_mdd(per, dates) if st else {}
         if st:
             status = "ok"

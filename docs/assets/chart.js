@@ -55,11 +55,22 @@
     var pad = (hi - lo) * 0.08 || Math.abs(hi) * 0.1 || 1;
     lo -= pad; hi += pad;
     if (cfg.zeroFloor && lo < 0) lo = 0;
+    if (cfg.yMin != null) lo = cfg.yMin;      // 밴드 라인이 튈 때 주가 기준으로 고정
+    if (cfg.yMax != null) hi = cfg.yMax;
 
     var x = function (i) { return m.l + (n <= 1 ? iw / 2 : (i / (n - 1)) * iw); };
     var y = function (v) { return m.t + ih - ((v - lo) / (hi - lo)) * ih; };
 
     var svg = el('svg', { width: W, height: H, viewBox: '0 0 ' + W + ' ' + H, class: 'cv' });
+
+    // 플롯 영역 밖으로 나가는 라인은 자른다
+    var clipId = 'clip' + Math.random().toString(36).slice(2, 8);
+    var defs = el('defs');
+    var cp = el('clipPath', { id: clipId });
+    cp.appendChild(el('rect', { x: m.l, y: m.t, width: iw, height: ih }));
+    defs.appendChild(cp);
+    svg.appendChild(defs);
+    var plot = el('g', { 'clip-path': 'url(#' + clipId + ')' });
 
     // y grid
     niceTicks(lo, hi, 5).forEach(function (t) {
@@ -109,7 +120,7 @@
         pen = true;
       }
       if (!d) return;
-      svg.appendChild(el('path', {
+      plot.appendChild(el('path', {
         d: d, fill: 'none', stroke: s.color, 'stroke-width': s.width || 1.4,
         'stroke-dasharray': s.dash || null, 'stroke-linejoin': 'round', opacity: s.opacity || 1
       }));
@@ -117,14 +128,18 @@
       if (s.endLabel) {
         for (var j = n - 1; j >= 0; j--) {
           if (s.values[j] != null && isFinite(s.values[j])) {
-            svg.appendChild(el('text', {
-              x: m.l + iw + 6, y: y(s.values[j]) + 3.5, fill: s.color, 'font-size': 9.5, 'font-family': 'ui-monospace,monospace'
-            }, s.endLabel));
+            var ly = y(s.values[j]);
+            if (ly >= m.t && ly <= m.t + ih) {
+              svg.appendChild(el('text', {
+                x: m.l + iw + 6, y: ly + 3.5, fill: s.color, 'font-size': 9.5, 'font-family': 'ui-monospace,monospace'
+              }, s.endLabel));
+            }
             break;
           }
         }
       }
     });
+    svg.appendChild(plot);
 
     // 십자선 + 히트영역
     var cross = el('line', { x1: 0, x2: 0, y1: m.t, y2: m.t + ih, stroke: '#8894ab', 'stroke-width': 1, 'stroke-dasharray': '3 3', opacity: 0 });
