@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fwd PER Band · 코스피200 / 코스닥150</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>📈</text></svg>">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <a href="#" class="logo">FWD<span>PER</span>BAND</a>
+    <span class="sub">코스피200 · 코스닥150 12개월 선행 PER 밴드</span>
+  </div>
+  <div class="meta" id="meta"></div>
+</header>
+
+<main>
+  <!-- ================= 목록 ================= -->
+  <section id="listView">
+    <div class="toolbar">
+      <div class="search">
+        <input id="q" type="search" placeholder="종목명 또는 종목코드 검색  (예: 삼성전자, 005930)" autocomplete="off">
+      </div>
+      <div class="chips" id="marketChips">
+        <button class="chip on" data-market="ALL">전체</button>
+        <button class="chip" data-market="KOSPI">KOSPI</button>
+        <button class="chip" data-market="KOSDAQ">KOSDAQ</button>
+      </div>
+      <div class="chips" id="quickSort">
+        <button class="chip" data-sort="cap" data-dir="desc">시가총액순</button>
+        <button class="chip" data-sort="per" data-dir="asc">PER 낮은순</button>
+        <button class="chip" data-sort="per" data-dir="desc">PER 높은순</button>
+        <button class="chip" data-sort="mdd" data-dir="asc">최근 MDD 큰순</button>
+      </div>
+      <div class="count" id="count"></div>
+    </div>
+
+    <div class="tablewrap">
+      <table id="tbl">
+        <thead>
+          <tr>
+            <th class="num">#</th>
+            <th data-sort="name" class="left">종목</th>
+            <th data-sort="cap" class="num">시가총액</th>
+            <th data-sort="price" class="num">종가</th>
+            <th data-sort="chg" class="num">등락률</th>
+            <th data-sort="eps" class="num">Fwd EPS</th>
+            <th data-sort="per" class="num sorted">Fwd PER</th>
+            <th class="band">1년 PER 밴드 위치</th>
+            <th data-sort="per_pct" class="num">밴드 %</th>
+            <th data-sort="mdd" class="num">최근 MDD</th>
+            <th data-sort="cur_dd" class="num">현재 낙폭</th>
+            <th data-sort="per_chg_1m" class="num">PER 1M</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+    <p class="note">
+      · <b>Fwd PER</b> = 종가(KRX) ÷ EPS(Fwd.12M, 지배 · FnGuide 컨센서스) &nbsp;
+      · <b>최근 MDD</b> = 최근 1년 PER 최고점 이후 최저점까지의 낙폭 &nbsp;
+      · <b>현재 낙폭</b> = 그 고점 대비 현재 PER 위치
+    </p>
+  </section>
+
+  <!-- ================= 상세 ================= -->
+  <section id="detailView" hidden>
+    <div class="dhead">
+      <button class="back" id="back">← 목록</button>
+      <h1 id="dTitle"></h1>
+      <div class="dstats" id="dStats"></div>
+    </div>
+
+    <div class="card">
+      <div class="cardhead">
+        <h2>Fwd PER Band <small>주가 vs 선행 PER 배수 라인 (EPS × 배수)</small></h2>
+        <div class="legend" id="bandLegend"></div>
+      </div>
+      <div class="chart" id="bandChart"></div>
+    </div>
+
+    <div class="grid2">
+      <div class="card">
+        <div class="cardhead"><h2>Fwd PER 추이 <small>평균 ±1σ · 최근 드로다운</small></h2></div>
+        <div class="chart short" id="perChart"></div>
+      </div>
+      <div class="card">
+        <div class="cardhead"><h2>EPS(Fwd.12M) 컨센서스 추이</h2></div>
+        <div class="chart short" id="epsChart"></div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div id="tip" class="tip" hidden></div>
+
+<script src="assets/chart.js"></script>
+<script src="assets/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,51 @@
+name: daily-update
+
+on:
+  schedule:
+    # 08:10 KST (전 영업일 종가 + FnGuide 전일자 기준 컨센서스가 모두 확정된 시각)
+    - cron: "10 23 * * 0-4"
+  workflow_dispatch:
+    inputs:
+      skip_consensus:
+        description: "컨센서스 크롤링 없이 시세만 갱신"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: daily-update
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 누적 업데이트 (KRX 종가 + FnGuide Fwd.12M 컨센서스)
+        env:
+          KRX_API_KEY: ${{ secrets.KRX_API_KEY }}
+        run: |
+          python scripts/daily_update.py ${{ inputs.skip_consensus && '--skip-consensus' || '' }}
+
+      - name: 정적 데이터 재생성
+        run: python scripts/build_site.py
+
+      - name: 커밋 & 푸시
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet; then
+            echo "변경 없음"
+          else
+            git add raw/master.json docs/data
+            git commit -m "data: $(date -u -d '+9 hours' +%Y-%m-%d) 갱신"
+            git push
+          fi
