@@ -1,0 +1,39 @@
+name: connectivity-check
+
+# GitHub 러너(해외 IP)에서 KRX OPEN API / FnGuide 에 접근되는지 확인용. 수동 실행 전용.
+on:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: FnGuide 접근 확인
+        run: |
+          python - <<'PY'
+          import sys
+          sys.path.insert(0, "scripts")
+          import fnguide
+          d = fnguide.consensus("005930")
+          print("FnGuide:", d["base_date"], "PER(Fwd.12M)=", d["per_fwd"])
+          assert d["per_fwd"], "FnGuide 값 없음 (차단 가능성)"
+          PY
+      - name: KRX 접근 확인
+        env:
+          KRX_API_KEY: ${{ secrets.KRX_API_KEY }}
+        run: |
+          python - <<'PY'
+          import os, sys
+          sys.path.insert(0, "scripts")
+          if not os.environ.get("KRX_API_KEY"):
+              print("KRX_API_KEY 시크릿 미설정 - 건너뜀"); raise SystemExit(0)
+          import krx
+          day = krx.fetch_day("20260731", use_cache=False)
+          print("KRX rows:", len(day), "삼성전자:", day.get("005930"))
+          assert day, "KRX 응답 없음"
+          PY
