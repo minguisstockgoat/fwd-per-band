@@ -45,6 +45,7 @@ KRX OPEN API 일별 종가/시총      ─┘         ▲
 | `scripts/daily_update.py` | 신규 거래일 append (KRX + FnGuide) |
 | `scripts/build_site.py` | `raw/master.json` → `docs/data/` |
 | `scripts/validate.py` | 계산 PER vs FnGuide 표기 PER 대조 |
+| `scripts/check_freshness.py` | 데이터 지연 감시 (밀리면 워크플로 실패) |
 
 ### 최초 구축 순서
 
@@ -67,13 +68,34 @@ py scripts/build_site.py
 
 ## 운영
 
-- **자동**: `.github/workflows/update.yml` — 매 영업일 08:10 KST
-- **수동**: Actions 탭 → `daily-update` → Run workflow
+- **자동**: `.github/workflows/update.yml` — 월~토 08:10 KST(cron `10 23 * * 0-5`).
+  스케줄 러너는 최대 1시간 늦게 뜬다. 토요일 실행이 있어야 금요일 종가가 월요일까지 밀리지 않는다.
+- **데이터는 항상 T-1** — 08:10 KST 시점엔 당일 종가가 없으므로 사이트 기준일은 직전 영업일이다.
+- **수동**: 대시보드 우상단 **↻ 수동 갱신** 버튼(아래) 또는 Actions 탭 → `daily-update` → Run workflow
 - **필요 시크릿**: `KRX_API_KEY` (KRX Data Marketplace OPEN API 인증키)
 
 ```bash
 gh secret set KRX_API_KEY --repo minguisstockgoat/fwd-per-band
 ```
+
+### 수동 갱신 버튼 / 지연 배지
+
+정적 페이지라 서버가 없다. 버튼은 GitHub API 로 `daily-update` 를 `workflow_dispatch` 하고
+런 상태를 폴링하다가, 성공하면 Pages 재배포까지 기다렸다 자동 새로고침한다.
+
+1. [Fine-grained PAT](https://github.com/settings/personal-access-tokens/new) 발급 —
+   Repository access `fwd-per-band`, Permissions **Actions: Read and write**
+2. 대시보드 우상단 ⚙ → 토큰 붙여넣고 저장 (브라우저 localStorage 에만 저장, 기기마다 1회)
+
+토큰이 없으면 ⚙ 패널에서 Actions 페이지로 넘어가 직접 실행할 수 있다.
+기준일 옆 배지는 `최신` / `갱신 대기`(오늘 자동 실행 전) / `N영업일 지연`(밀림 의심)을 보여준다.
+공휴일은 판별하지 못하므로 연휴 뒤엔 오탐이 날 수 있다.
+
+### 조용한 실패 방지
+
+`daily_update.py` 는 KRX/FnGuide 가 빈 응답을 줘도 "신규 거래일 없음" 으로 정상 종료한다
+(워크플로는 초록불인데 사이트만 굳는 실패 모드). 그래서 마지막 스텝에서
+`scripts/check_freshness.py` 가 데이터가 4영업일 이상 밀렸는지 보고 밀렸으면 런을 실패시킨다.
 
 ## 한계
 

@@ -211,6 +211,8 @@
     .then(function (r) { return r.json(); })
     .then(function (j) {
       DATA = j.stocks; META = j.meta;
+      window.FPB_META = META;                       // refresh.js(지연 배지)가 읽는다
+      window.dispatchEvent(new CustomEvent('fpb:meta', { detail: META }));
       $('#meta').innerHTML = '기준일 <b>' + ymd(META.end) + '</b> · 대상 <b>' + META.count + '</b>종목<br>' +
         '밴드구간 ' + ymd(META.start) + ' ~ ' + ymd(META.end) + ' (' + META.days + '거래일)';
       renderList();
