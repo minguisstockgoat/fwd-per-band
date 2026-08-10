@@ -56,14 +56,24 @@
     return n;
   }
 
+  // 다음 자동 갱신 시각(영업일 08:10 KST) — '왜 오늘 날짜가 아닌가'를 헤더에서 바로 답한다.
+  function nextUpdateLabel() {
+    var t = kstToday();
+    var d = new Date(Date.UTC(t.getFullYear(), t.getMonth(), t.getDate()));
+    var beforeRun = t.getHours() < 8 || (t.getHours() === 8 && t.getMinutes() < 10);
+    if (!beforeRun) d.setUTCDate(d.getUTCDate() + 1);   // 오늘 회차는 지났다
+    while (d.getUTCDay() === 0 || d.getUTCDay() === 6) d.setUTCDate(d.getUTCDate() + 1);
+    return (d.getUTCMonth() + 1) + '/' + d.getUTCDate() + ' 08:10';
+  }
+
   function renderBadge(meta) {
     if (!badgeEl || !meta || !meta.end) return;
     var lag = lagBizDays(meta.end);
     badgeEl.hidden = false;
     if (lag <= 0) {
       badgeEl.className = 'freshness ok';
-      badgeEl.textContent = '최신';
-      badgeEl.title = '직전 영업일 종가까지 반영됨';
+      badgeEl.textContent = '최신 · 다음 갱신 ' + nextUpdateLabel();
+      badgeEl.title = '직전 영업일 종가까지 반영됨. 오늘 종가는 다음 갱신 회차에 붙는다(주말·휴일 뒤에는 기준일이 며칠 전으로 보이는 게 정상).';
     } else if (lag === 1) {
       badgeEl.className = 'freshness wait';
       badgeEl.textContent = '갱신 대기';
@@ -180,6 +190,15 @@
   // 워크플로 성공 후 Pages 재배포까지 30초~2분. index.json 이 바뀌면 새로고침.
   function waitForData(runUrl) {
     var before = (window.FPB_META && window.FPB_META.end) || '';
+
+    // 새 거래일이 없으면 워크플로는 '변경 없음'으로 끝난다 — index.json 은 영원히 안 바뀐다.
+    // 이걸 폴링하면 2분 뒤 '배포가 늦어진다'는 경고가 떠서 고장난 것처럼 보인다(실제 오인 사례).
+    if (before && lagBizDays(before) <= 0) {
+      stop('이미 최신이다 — 기준일 ' + before + '(직전 영업일 종가)까지 반영돼 있어 갱신할 새 거래일이 없다. ' +
+           '다음 갱신 ' + nextUpdateLabel() + ' · <a href="' + runUrl + '" target="_blank" rel="noopener">실행 로그</a>', 'ok');
+      return;
+    }
+
     var tries = 0;
     poll = setInterval(function () {
       if (++tries > 20) {
